@@ -1,5 +1,6 @@
 "use client";
 
+import { JobDetailsSkeleton } from "@/components/job-details-skeleton";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -10,7 +11,6 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Skeleton } from "@/components/ui/skeleton";
 import { addLikedJob, isJobLiked, removeLikedJob } from "@/lib/localStorage";
 import api from "@/services/api";
 import { Job, JobSearchErrorResponse, JSearchApiResponse } from "@/types/job";
@@ -50,10 +50,6 @@ async function fetchJobDetails(jobId: string): Promise<Job> {
 
   try {
     const decodedJobId = decodeURIComponent(jobId);
-
-    console.log("🔍 Original job ID:", jobId);
-    console.log("🔍 Decoded job ID:", decodedJobId);
-
     const response = await api.get<JSearchApiResponse>("/job-details", {
       params: {
         job_id: decodedJobId,
@@ -61,26 +57,20 @@ async function fetchJobDetails(jobId: string): Promise<Job> {
       },
     });
 
-    console.log("📊 Job details response status:", response.data.status);
-
     if (isErrorResponse(response.data)) {
-      console.error("❌ API returned error:", response.data.error);
       throw new Error(response.data.error.message);
     }
 
     if (!response.data.data || response.data.data.length === 0) {
-      console.warn("⚠️ No job data found for ID:", decodedJobId);
       throw new Error("Job not found.");
     }
 
-    console.log("✅ Successfully fetched job details");
     return response.data.data[0];
   } catch (error: unknown) {
-    console.error(`❌ Error fetching job details for ${jobId}:`, error);
-
     if (isAxiosErrorWithResponseData(error)) {
       throw new Error("Axios error with response data.");
-    } else if (error instanceof Error) {
+    }
+    if (error instanceof Error) {
       throw error;
     }
     throw new Error("Unknown error while fetching job details.");
@@ -134,34 +124,7 @@ export function JobDetailsContent({ jobId }: JobDetailsContentProps) {
   };
 
   if (isLoading) {
-    return (
-      <div className="container mx-auto p-4 max-w-4xl">
-        <Skeleton className="h-10 w-48 mb-6" />
-        <Card>
-          <CardHeader className="flex flex-row items-center gap-4">
-            <Skeleton className="size-20 rounded-full" />
-            <div className="flex-1 space-y-2">
-              <Skeleton className="h-8 w-3/4" />
-              <Skeleton className="h-6 w-1/2" />
-              <Skeleton className="h-4 w-1/3" />
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            <div className="flex flex-wrap gap-2">
-              <Skeleton className="h-6 w-24 rounded-full" />
-              <Skeleton className="h-6 w-20 rounded-full" />
-              <Skeleton className="h-6 w-28 rounded-full" />
-            </div>
-            <Skeleton className="h-6 w-40" />
-            <Skeleton className="h-4 w-32" />
-            <Skeleton className="h-20 w-full" />
-            <Skeleton className="h-16 w-full" />
-            <Skeleton className="h-16 w-full" />
-            <Skeleton className="h-10 w-full" />
-          </CardContent>
-        </Card>
-      </div>
-    );
+    return <JobDetailsSkeleton />;
   }
 
   if (isError) {
@@ -250,14 +213,15 @@ export function JobDetailsContent({ jobId }: JobDetailsContentProps) {
         </CardHeader>
         <CardContent className="space-y-6">
           <div className="flex flex-wrap gap-2">
-            {job.job_employment_types.map((type, index) => (
-              <Badge
-                key={index}
-                className="bg-neutral-200 text-neutral-800 capitalize"
-              >
-                {type.replace("_", " ").toLowerCase()}
-              </Badge>
-            ))}
+            {job.job_employment_types &&
+              job.job_employment_types.map((type, index) => (
+                <Badge
+                  key={index}
+                  className="bg-neutral-200 text-neutral-800 capitalize"
+                >
+                  {type.replace("_", " ").toLowerCase()}
+                </Badge>
+              ))}
             {job.job_is_remote && (
               <Badge className="bg-gray-200 text-gray-600">Remote</Badge>
             )}

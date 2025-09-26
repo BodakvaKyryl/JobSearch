@@ -28,19 +28,10 @@ export function Navbar() {
               Liked Jobs
             </Button>
           </Link>
-          <Link href="/auth/login">
-            {" "}
-            <Button
-              variant="ghost"
-              className="text-white hover:bg-white/10 hover:text-white"
-            >
-              Sign In
-            </Button>
-          </Link>
           <Link href="/create-profile">
             {" "}
             <Button className="bg-neutral-900 hover:bg-neutral-800 text-white">
-              Create Profile
+              Your Profile
             </Button>
           </Link>
         </div>

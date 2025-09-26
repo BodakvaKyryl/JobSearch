@@ -1,9 +1,16 @@
 "use client";
 
 import { JobCard } from "@/components/job-card";
+import { JobCardSkeleton } from "@/components/job-card-skeleton";
 import { JobSearchForm } from "@/components/job-search-form";
 import { Button } from "@/components/ui/button";
-import { getLikedJobs } from "@/lib/localStorage";
+import {
+  getLikedJobs,
+  getUserProfile,
+  LIKED_JOBS_KEY,
+  USER_PROFILE_KEY,
+  UserProfile,
+} from "@/lib/localStorage";
 import api from "@/services/api";
 import { Job, JobSearchErrorResponse, JSearchApiResponse } from "@/types/job";
 import { useQuery } from "@tanstack/react-query";
@@ -17,7 +24,7 @@ function isErrorResponse(
 }
 
 async function fetchJobs(searchTerm: string): Promise<Job[]> {
-  const query = searchTerm;
+  const query = searchTerm.trim();
   if (!query) return [];
 
   try {
@@ -25,6 +32,8 @@ async function fetchJobs(searchTerm: string): Promise<Job[]> {
       params: {
         query: query,
         num_pages: 1,
+        country: "us",
+        language: "en",
       },
     });
 
@@ -43,34 +52,41 @@ async function fetchJobs(searchTerm: string): Promise<Job[]> {
 }
 
 export default function JobsPage() {
-  const initialSearchTerm = (() => {
-    if (typeof window !== "undefined") {
-      const userProfile = localStorage.getItem("userProfile");
-      if (userProfile) {
-        const profile = JSON.parse(userProfile);
-        return profile.desiredJobTitle || "React";
-      }
-    }
-    return "React";
-  })();
-
-  const [currentSearchTerm, setCurrentSearchTerm] = useState(initialSearchTerm);
-  const [likedJobs, setLikedJobs] = useState<Job[]>([]);
   const router = useRouter();
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
+  const [isProfileLoading, setIsProfileLoading] = useState(true);
+  const [currentSearchTerm, setCurrentSearchTerm] = useState("");
+  const [hasUserSearchedManually, setHasUserSearchedManually] = useState(false);
+  const [likedJobs, setLikedJobs] = useState<Job[]>([]);
 
   useEffect(() => {
-    if (typeof window !== "undefined") {
-      const storedLikedJobs = localStorage.getItem("likedJobs");
-      if (storedLikedJobs) {
-        setLikedJobs(JSON.parse(storedLikedJobs));
+    const profile = getUserProfile();
+    setUserProfile(profile);
+
+    const initialQuery = profile?.desiredJobTitle || "Software Developer";
+    setCurrentSearchTerm(initialQuery);
+    setIsProfileLoading(false);
+
+    setLikedJobs(getLikedJobs());
+
+    const handleLocalStorageChange = (event: Event) => {
+      const customEvent = event as CustomEvent;
+      if (customEvent.detail?.key === USER_PROFILE_KEY) {
+        const updatedProfile = getUserProfile();
+        setUserProfile(updatedProfile);
+        if (updatedProfile?.desiredJobTitle && !hasUserSearchedManually) {
+          setCurrentSearchTerm(updatedProfile.desiredJobTitle);
+        } else if (
+          !updatedProfile?.desiredJobTitle &&
+          !hasUserSearchedManually
+        ) {
+          setCurrentSearchTerm("Software Developer");
+        }
+      } else if (customEvent.detail?.key === LIKED_JOBS_KEY) {
+        setLikedJobs(getLikedJobs());
       }
-    }
-  }, []);
-
-  useEffect(() => {
-    const handleLocalStorageChange = () => {
-      setLikedJobs(getLikedJobs());
     };
+
     window.addEventListener("localStorageChange", handleLocalStorageChange);
     return () => {
       window.removeEventListener(
@@ -78,18 +94,19 @@ export default function JobsPage() {
         handleLocalStorageChange
       );
     };
-  }, []);
+  }, [hasUserSearchedManually]);
 
   const { data, isLoading, isError, error, refetch } = useQuery<Job[], Error>({
     queryKey: ["jobs", currentSearchTerm],
     queryFn: () => fetchJobs(currentSearchTerm),
-    enabled: !!currentSearchTerm,
+    enabled: !!currentSearchTerm && !isProfileLoading,
     staleTime: 5 * 60 * 1000,
     gcTime: 10 * 60 * 1000,
   });
 
   const handleSearchSubmit = (searchTerm: string) => {
     setCurrentSearchTerm(searchTerm);
+    setHasUserSearchedManually(true);
   };
 
   const handleViewDetails = (jobId: string) => {
@@ -104,18 +121,37 @@ export default function JobsPage() {
     }
   };
 
+  const pageTitle = hasUserSearchedManually
+    ? `Search Results: "${currentSearchTerm}"`
+    : userProfile?.desiredJobTitle
+    ? `Recommended Jobs: "${userProfile.desiredJobTitle}"`
+    : "Popular Jobs (Default)";
+
+  if (isProfileLoading || isLoading) {
+    return (
+      <div className="container mx-auto p-4 max-w-7xl mt-10">
+        <h1 className="text-4xl font-extrabold text-center mb-8 text-gray-900">
+          {isProfileLoading ? "Loading Profile..." : "Loading Jobs..."}
+        </h1>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {[...Array(6)].map((_, i) => (
+            <JobCardSkeleton key={i} />
+          ))}
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="container mx-auto p-4 max-w-7xl">
+    <div className="container mx-auto p-4 max-w-7xl mt-10">
+      <h1 className="text-4xl font-extrabold text-center mb-8 text-gray-900">
+        {pageTitle}
+      </h1>
+
       <JobSearchForm
         initialSearchTerm={currentSearchTerm}
         onSearch={handleSearchSubmit}
       />
-
-      {isLoading && (
-        <div className="text-center py-8 text-gray-700">
-          Jobs are loading...
-        </div>
-      )}
 
       {isError && (
         <div className="text-center py-8 text-red-500 text-lg">
@@ -141,7 +177,9 @@ export default function JobsPage() {
           </div>
         ) : (
           <div className="text-center py-8">
-            <p className="text-gray-600 mb-4 text-lg">No jobs are found.</p>
+            <p className="text-gray-600 mb-4 text-lg">
+              No jobs found for your query.
+            </p>
             <Button
               onClick={() => refetch()}
               className="bg-gray-600 hover:bg-gray-700"

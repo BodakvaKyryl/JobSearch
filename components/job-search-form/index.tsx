@@ -1,11 +1,11 @@
 "use client";
 
+import { Label } from "@radix-ui/react-label";
 import { ErrorMessage, Field, Form, Formik } from "formik";
 import React from "react";
 import * as yup from "yup";
-import { Button } from "./ui/button";
-import { Input } from "./ui/input";
-import { Label } from "./ui/label";
+import { Button } from "../ui/button";
+import { Input } from "../ui/input";
 
 interface JobSearchProps {
   initialSearchTerm: string;
