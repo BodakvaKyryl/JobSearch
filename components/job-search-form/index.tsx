@@ -30,16 +30,19 @@ export const JobSearchForm: React.FC<JobSearchProps> = ({
   const initialValues: FormValues = {
     searchTerm: initialSearchTerm,
   };
+
   return (
     <Formik
       initialValues={initialValues}
+      enableReinitialize={true}
+      validateOnMount={true}
       validationSchema={validationSchema}
       onSubmit={(values, { setSubmitting }) => {
         onSearch(values.searchTerm);
         setSubmitting(false);
       }}
     >
-      {({ isSubmitting, isValid, dirty }) => (
+      {({ isSubmitting, isValid }) => (
         <Form className="mb-6 flex gap-2 items-start">
           <div className="flex-grow">
             <Label htmlFor="searchTerm">
@@ -60,7 +63,7 @@ export const JobSearchForm: React.FC<JobSearchProps> = ({
           </div>
           <Button
             type="submit"
-            disabled={isSubmitting || !isValid || !dirty}
+            disabled={isSubmitting || !isValid}
             className="px-6 py-2"
           >
             {isSubmitting ? "Search..." : "Search"}

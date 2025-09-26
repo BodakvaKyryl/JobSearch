@@ -13,7 +13,7 @@ import {
 } from "@/lib/localStorage";
 import api from "@/services/api";
 import { Job, JobSearchErrorResponse, JSearchApiResponse } from "@/types/job";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
@@ -63,8 +63,10 @@ export default function JobsPage() {
     const profile = getUserProfile();
     setUserProfile(profile);
 
-    const initialQuery = profile?.desiredJobTitle || "Software Developer";
-    setCurrentSearchTerm(initialQuery);
+    if (!hasUserSearchedManually) {
+      const initialQuery = profile?.desiredJobTitle || "Software Developer";
+      setCurrentSearchTerm(initialQuery);
+    }
     setIsProfileLoading(false);
 
     setLikedJobs(getLikedJobs());
@@ -103,6 +105,8 @@ export default function JobsPage() {
     staleTime: 5 * 60 * 1000,
     gcTime: 10 * 60 * 1000,
   });
+
+  const queryClient = useQueryClient();
 
   const handleSearchSubmit = (searchTerm: string) => {
     setCurrentSearchTerm(searchTerm);
